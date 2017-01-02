@@ -1,5 +1,7 @@
-import {Injectable} from "@angular/core";
+import {Injectable, Inject} from "@angular/core";
 import {CognitoUtil, Callback} from "./cognito.service";
+import { AppAwsConfig } from "../config/aws.iconfig";
+import { APP_AWS_CONFIG, APP_AWS_DI_CONFIG } from "../config/aws.config";
 
 declare var AWS:any;
 declare var AMA:any;
@@ -9,8 +11,9 @@ export class AwsUtil {
     public static firstLogin:boolean = false;
     public static runningInit:boolean = false;
 
-    constructor() {
-        AWS.config.region = CognitoUtil._REGION;
+    constructor(@Inject(APP_AWS_CONFIG) public awsConfig: AppAwsConfig) {
+        AWS.config.region = awsConfig.region;
+        this.awsConfig = awsConfig;
     }
 
     /**
@@ -96,12 +99,13 @@ export class AwsUtil {
     }
 
     static getCognitoParametersForIdConsolidation(idTokenJwt:string):{} {
+        // Hack to get config, need to refactor.
         console.log("AwsUtil: enter getCognitoParametersForIdConsolidation()");
-        let url = 'cognito-idp.' + CognitoUtil._REGION.toLowerCase() + '.amazonaws.com/' + CognitoUtil._USER_POOL_ID;
+        let url = 'cognito-idp.' + APP_AWS_DI_CONFIG.region.toLowerCase() + '.amazonaws.com/' + APP_AWS_DI_CONFIG.userPoolId;
         let logins:Array<string> = [];
         logins[url] = idTokenJwt;
         let params = {
-            IdentityPoolId: CognitoUtil._IDENTITY_POOL_ID, /* required */
+            IdentityPoolId: APP_AWS_DI_CONFIG.identityPoolId, /* required */
             Logins: logins
         };
 

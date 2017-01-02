@@ -21,6 +21,8 @@ import {MyProfileComponent} from "./secure/myprofile.component";
 import {SecureHomeComponent} from "./secure/securehome.component";
 import {JwtComponent} from "./secure/jwt.component";
 import {DynamoDBService} from "./service/ddb.service";
+import {APP_AWS_CONFIG, APP_AWS_DI_CONFIG} from "./config/aws.config"
+import { AppAwsConfig } from './config/aws.iconfig';
 
 
 @NgModule({
@@ -53,7 +55,9 @@ import {DynamoDBService} from "./service/ddb.service";
         DynamoDBService,
         UserRegistrationService,
         UserLoginService,
-        UserParametersService],
+        UserParametersService,
+        { provide: APP_AWS_CONFIG, useValue: APP_AWS_DI_CONFIG }
+        ],
     bootstrap: [AppComponent]
 })
 export class AppModule {
