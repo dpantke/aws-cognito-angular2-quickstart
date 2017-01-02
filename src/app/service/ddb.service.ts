@@ -1,5 +1,7 @@
-import {Injectable} from "@angular/core";
+import {Injectable, Inject} from "@angular/core";
 import {Stuff} from "../secure/useractivity.component";
+import { AppAwsConfig } from "../config/aws.iconfig";
+import { APP_AWS_CONFIG } from "../config/aws.config";
 
 declare var AWS:any;
 declare var AWSCognito:any;
@@ -7,14 +9,14 @@ declare var AWSCognito:any;
 @Injectable()
 export class DynamoDBService {
 
-    constructor() {
+    constructor(@Inject(APP_AWS_CONFIG) public awsConfig: AppAwsConfig) {
         console.log("DynamoDBService: constructor");
     }
 
     getLogEntries(mapArray:Array<Stuff>) {
         console.log("DynamoDBService: reading from DDB with creds - " + AWS.config.credentials);
         var params = {
-            TableName: 'LoginTrail',
+            TableName: this.awsConfig.userAuditTable,
             KeyConditionExpression: "userId = :userId",
             ExpressionAttributeValues: {
                 ":userId": AWS.config.credentials.params.IdentityId
@@ -51,7 +53,7 @@ export class DynamoDBService {
     write(data:string, date:string, type:string):void {
         console.log("DynamoDBService: writing " + type + " entry");
         var DDB = new AWS.DynamoDB({
-            params: {TableName: 'LoginTrail'}
+            params: {TableName: this.awsConfig.userAuditTable}
         });
 
         // Write the item to the table
@@ -63,8 +65,10 @@ export class DynamoDBService {
                 type: {S: type}
             }
         };
-        DDB.putItem(itemParams, function (result) {
-            console.log("DynamoDBService: wrote entry: " + JSON.stringify(result));
+        console.log("Calling putItem with params " + JSON.stringify(itemParams));
+        DDB.putItem(itemParams, function (err, data) {
+            if (err) console.log("DynamoDBService: ",err, err.stack); // an error occurred
+            else     console.log("DynamoDBService: wrote entry: ", data);           // successful response
         });
     }
 
