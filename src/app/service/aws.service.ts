@@ -2,9 +2,9 @@ import {Injectable, Inject} from "@angular/core";
 import {CognitoUtil, Callback} from "./cognito.service";
 import { AppAwsConfig } from "../config/aws.iconfig";
 import { APP_AWS_CONFIG, APP_AWS_DI_CONFIG } from "../config/aws.config";
-
-declare var AWS:any;
-declare var AMA:any;
+import * as AWS from "aws-sdk/global";
+import * as CognitoIdentity from "aws-sdk/clients/cognitoidentity";
+import * as AMA from "aws-sdk/clients/mobileanalytics";
 
 @Injectable()
 export class AwsUtil {
@@ -56,13 +56,14 @@ export class AwsUtil {
         if (isLoggedIn) {
             console.log("AwsUtil: User is logged in");
             // Setup mobile analytics
-            var options = {
-                appId: '32673c035a0b40e99d6e1f327be0cb60',
-                appTitle: "aws-cognito-angular2-quickstart"
-            };
+            // var options = {
+            //     appId: '32673c035a0b40e99d6e1f327be0cb60',
+            //     appTitle: "aws-cognito-angular2-quickstart"
+            // };
 
-            var mobileAnalyticsClient = new AMA.Manager(options);
-            mobileAnalyticsClient.submitEvents();
+            
+            // var mobileAnalyticsClient = new AMA.Manager(options);
+            // mobileAnalyticsClient.submitEvents();
 
             this.addCognitoCredentials(idToken);
 
@@ -84,11 +85,12 @@ export class AwsUtil {
     addCognitoCredentials(idTokenJwt:string):void {
         let params = AwsUtil.getCognitoParametersForIdConsolidation(idTokenJwt);
 
-        AWS.config.credentials = new AWS.CognitoIdentityCredentials(params);
+        let creds = new AWS.CognitoIdentityCredentials(params);
 
-        AWS.config.credentials.get(function (err) {
+        AWS.config.credentials = creds;
+
+        creds.get(function (err) {
             if (!err) {
-                // var id = AWS.config.credentials.identityId;
                 if (AwsUtil.firstLogin) {
                     // save the login info to DDB
                     this.ddb.writeLogEntry("login");
@@ -98,11 +100,11 @@ export class AwsUtil {
         });
     }
 
-    static getCognitoParametersForIdConsolidation(idTokenJwt:string):{} {
+    static getCognitoParametersForIdConsolidation(idTokenJwt:string):CognitoIdentity.GetIdInput {
         // Hack to get config, need to refactor.
         console.log("AwsUtil: enter getCognitoParametersForIdConsolidation()");
         let url = 'cognito-idp.' + APP_AWS_DI_CONFIG.region.toLowerCase() + '.amazonaws.com/' + APP_AWS_DI_CONFIG.userPoolId;
-        let logins:Array<string> = [];
+        let logins:CognitoIdentity.LoginsMap = {};
         logins[url] = idTokenJwt;
         let params = {
             IdentityPoolId: APP_AWS_DI_CONFIG.identityPoolId, /* required */
