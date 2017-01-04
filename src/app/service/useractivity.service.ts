@@ -1,4 +1,4 @@
-import {Injectable, Inject } from "@angular/core";
+import { Injectable, Inject } from "@angular/core";
 import { UserActivity } from "../shared/useractivity";
 import { AppAwsConfig } from "../config/aws.iconfig";
 import { APP_AWS_CONFIG } from "../config/aws.config";
