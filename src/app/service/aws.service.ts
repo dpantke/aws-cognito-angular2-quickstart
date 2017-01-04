@@ -4,17 +4,49 @@ import { AppAwsConfig } from "../config/aws.iconfig";
 import { APP_AWS_CONFIG, APP_AWS_DI_CONFIG } from "../config/aws.config";
 import * as AWS from "aws-sdk/global";
 import * as CognitoIdentity from "aws-sdk/clients/cognitoidentity";
-import * as AMA from "aws-sdk/clients/mobileanalytics";
 
 @Injectable()
 export class AwsUtil {
     public static firstLogin:boolean = false;
     public static runningInit:boolean = false;
 
+    public cognitoCreds:AWS.CognitoIdentityCredentials;
+
     constructor(@Inject(APP_AWS_CONFIG) public awsConfig: AppAwsConfig) {
         AWS.config.region = awsConfig.region;
         this.awsConfig = awsConfig;
     }
+
+    // AWS Stores Credentials in many ways, and with TypeScript this means that 
+    // getting the base credentials we authenticated from the AWS globals gets really murky,
+    // having to get around both class extension and unions. Therefore, we're going to give
+    // developers direct access to the raw, unadulterated CognitoIdentityCredentials
+     // object at all times.
+     setCognitoCreds(creds:AWS.CognitoIdentityCredentials) {
+         this.cognitoCreds = creds;
+     }
+
+     getCognitoCreds(){
+         return this.cognitoCreds;
+     }
+
+    // This method takes in a raw jwtToken and uses the global AWS config options to build a
+    // CognitoIdentityCredentials object and store it for us. It also returns the object to the caller
+    // to avoid unnecessary calls to setCognitoCreds.
+
+    buildCognitoCreds(idTokenJwt:string) {
+        let url = 'cognito-idp.' + this.awsConfig.region.toLowerCase() + '.amazonaws.com/' + this.awsConfig.userPoolId;
+        let logins:CognitoIdentity.LoginsMap = {};
+        logins[url] = idTokenJwt;
+        let params = {
+            IdentityPoolId: this.awsConfig.identityPoolId, /* required */
+            Logins: logins
+        };
+        let creds = new AWS.CognitoIdentityCredentials(params);
+        this.setCognitoCreds(creds);
+        return creds;
+    }
+
 
     /**
      * This is the method that needs to be called in order to init the aws global creds
@@ -83,10 +115,8 @@ export class AwsUtil {
     }
 
     addCognitoCredentials(idTokenJwt:string):void {
-        let params = AwsUtil.getCognitoParametersForIdConsolidation(idTokenJwt);
 
-        let creds = new AWS.CognitoIdentityCredentials(params);
-
+        let creds = this.buildCognitoCreds(idTokenJwt);
         AWS.config.credentials = creds;
 
         creds.get(function (err) {
@@ -98,20 +128,6 @@ export class AwsUtil {
                 }
             }
         });
-    }
-
-    static getCognitoParametersForIdConsolidation(idTokenJwt:string):CognitoIdentity.GetIdInput {
-        // Hack to get config, need to refactor.
-        console.log("AwsUtil: enter getCognitoParametersForIdConsolidation()");
-        let url = 'cognito-idp.' + APP_AWS_DI_CONFIG.region.toLowerCase() + '.amazonaws.com/' + APP_AWS_DI_CONFIG.userPoolId;
-        let logins:CognitoIdentity.LoginsMap = {};
-        logins[url] = idTokenJwt;
-        let params = {
-            IdentityPoolId: APP_AWS_DI_CONFIG.identityPoolId, /* required */
-            Logins: logins
-        };
-
-        return params;
     }
 
 }

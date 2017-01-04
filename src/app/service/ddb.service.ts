@@ -2,28 +2,29 @@ import {Injectable, Inject } from "@angular/core";
 import { UserActivity } from "../shared/useractivity";
 import { AppAwsConfig } from "../config/aws.iconfig";
 import { APP_AWS_CONFIG } from "../config/aws.config";
-
-declare var AWS:any;
-declare var AWSCognito:any;
+import { AwsUtil } from "./aws.service";
+import * as CognitoIdentity from "aws-sdk/clients/cognitoidentity"; 
+import * as AWS from "aws-sdk/global";
+import * as DynamoDB from "aws-sdk/clients/dynamodb";
 
 @Injectable()
 export class DynamoDBService {
 
-    constructor(@Inject(APP_AWS_CONFIG) public awsConfig: AppAwsConfig) {
+    constructor(@Inject(APP_AWS_CONFIG) public awsConfig: AppAwsConfig, public awsUtil:AwsUtil ) {
         console.log("DynamoDBService: constructor");
     }
 
     getLogEntries(mapArray:Array<UserActivity>) {
-        console.log("DynamoDBService: reading from DDB with creds - " + AWS.config.credentials);
+        console.log("DynamoDBService: AWS config is: ", AWS.config );
         var params = {
             TableName: this.awsConfig.userAuditTable,
             KeyConditionExpression: "userId = :userId",
             ExpressionAttributeValues: {
-                ":userId": AWS.config.credentials.params.IdentityId
+                ":userId": this.awsUtil.getCognitoCreds().identityId
             }
         };
 
-        var docClient = new AWS.DynamoDB.DocumentClient();
+        var docClient = new DynamoDB.DocumentClient();
         docClient.query(params, onQuery);
 
         function onQuery(err, data) {
@@ -42,8 +43,8 @@ export class DynamoDBService {
     writeLogEntry(type:string) {
         try {
             let date = new Date().toString();
-            console.log("DynamoDBService: Writing log entry. Type:" + type + " ID: " + AWS.config.credentials.params.IdentityId + " Date: " + date);
-            this.write(AWS.config.credentials.params.IdentityId, date, type);
+            console.log("DynamoDBService: Writing log entry. Type:" + type + " ID: " + this.awsUtil.getCognitoCreds().identityId + " Date: " + date);
+            this.write(this.awsUtil.getCognitoCreds().identityId, date, type);
         } catch (exc) {
             console.log("DynamoDBService: Couldn't write to DDB");
         }
@@ -52,13 +53,14 @@ export class DynamoDBService {
 
     write(data:string, date:string, type:string):void {
         console.log("DynamoDBService: writing " + type + " entry");
-        var DDB = new AWS.DynamoDB({
+        var DDB = new DynamoDB({
             params: {TableName: this.awsConfig.userAuditTable}
         });
 
         // Write the item to the table
         var itemParams =
         {
+            TableName: this.awsConfig.userAuditTable,
             Item: {
                 userId: {S: data},
                 activityDate: {S: date},
