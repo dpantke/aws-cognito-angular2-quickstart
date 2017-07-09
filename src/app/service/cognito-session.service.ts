@@ -24,6 +24,7 @@ export class CognitoSessionService {
 
     private cognitoUser: Promise<CognitoUser>;
     private cognitoCreds: Promise<AWS.CognitoIdentityCredentials>;
+    private cognitoSession: Promise<CognitoUserSession>;
     public cognitoUserPool: CognitoUserPool;
 
     constructor() {
@@ -42,9 +43,23 @@ export class CognitoSessionService {
     initSession(user:CognitoUser):Promise<AWS.CognitoIdentityCredentials> {
         console.log("Initializing user session...");
         this.cognitoUser = Promise.resolve(user);
-        return this.cognitoUser.then(function (user:CognitoUser) {
-            return user.getSignInUserSession()
+        return this.cognitoUser.then( (user:CognitoUser) => {
+            this.cognitoSession = Promise.resolve(user.getSignInUserSession());
+            return this.cognitoSession;
         }).then(this.initCognitoCreds);
+    }
+
+    /**
+     * Retrieves a session
+     */
+    getSession = (user:CognitoUser):Promise<CognitoUserSession> => {
+        if (this.cognitoSession == null) {
+            return this.cognitoUser.then( (user:CognitoUser) => {
+                this.cognitoSession = this.refreshSession(user);
+                return this.cognitoSession;
+            })
+        }
+        return this.cognitoSession;
     }
 
     /**
@@ -70,7 +85,7 @@ export class CognitoSessionService {
     private getCredsInternal = (user:CognitoUser):Promise<AWS.CognitoIdentityCredentials> => {
         if (this.cognitoCreds == null) {
             console.log("congnitoSession: Creds are invalid; getting creds from session.");
-            return this.refreshSession(user).then(this.initCognitoCreds);
+            return this.getSession(user).then(this.initCognitoCreds);
         }
         return Promise.resolve(this.cognitoCreds);
     }

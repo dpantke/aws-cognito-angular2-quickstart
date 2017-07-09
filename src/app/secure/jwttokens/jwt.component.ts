@@ -1,15 +1,9 @@
 import {Component} from "@angular/core";
 import {UserLoginService} from "../../service/user-login.service";
 import {Callback, LoggedInCallback} from "../../service/cognito.service";
-import {CognitoSessionService} from "../../service/cognito-session.service";
-import {CognitoUser} from "amazon-cognito-identity-js";
+import {UserParametersService} from "../../service/user-parameters.service";
+import {JwtTokens} from "../../shared/jwt-tokens";
 import {Router} from "@angular/router";
-
-
-export class Stuff {
-    public accessToken: string;
-    public idToken: string;
-}
 
 @Component({
     selector: 'awscognito-angular2-app',
@@ -17,9 +11,9 @@ export class Stuff {
 })
 export class JwtComponent implements LoggedInCallback {
 
-    public stuff: Stuff = new Stuff();
+    public tokens: JwtTokens = new JwtTokens();
 
-    constructor(public router: Router, public userService: UserLoginService, public cognitoSession: CognitoSessionService) {
+    constructor(public router: Router, public userService: UserLoginService, public paramsService: UserParametersService ) {
         this.userService.isAuthenticated(this);
         console.log("in JwtComponent");
     }
@@ -28,16 +22,9 @@ export class JwtComponent implements LoggedInCallback {
         if (!isLoggedIn) {
             this.router.navigate(['/home/login']);
         } else {
-            this.cognitoSession.getCurrentUser().then( (user:CognitoUser) => {
-                user.getSession( (err, session) => {
-                    if (err)
-                        console.log("UserParametersService: Couldn't retrieve the user");
-                    else {
-                        this.stuff.idToken = session.getIdToken().getJwtToken();
-                        this.stuff.accessToken = session.getAccessToken().getJwtToken();
-                    }
-                });
-            })
+           this.paramsService.getTokens().then( (jwtTokens:JwtTokens) => {
+               this.tokens = jwtTokens;
+           })
         }
     }
 }
